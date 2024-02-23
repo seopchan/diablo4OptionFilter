@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>디아4 옵션 필터</title>
+    <style>
+        #fullList, #searchResults { display: flex; flex-wrap: wrap; justify-content: space-between; }
+        #fullList > div, #searchResults > div { width: 33%; }
+        #pasteBox {
+            width: 100%;
+            height: auto;
+            min-height: 50px;
+            font-size: 16px;
+            overflow-y: hidden;
+        }
+        .highlight { background-color: yellow; }
+        .detail-container { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Stats Management</h1>
+    <button id="toggleFullList">모든 옵션 보기</button>
+    <div id="fullList" class="container"></div>
+
+    <h2>옵션 검색</h2>
+    <input type="text" id="searchBox" placeholder="Search stats...">
+    <div id="searchResults" class="container"></div>
+
+    <h2>확인할 아이템 정보 입력</h2>
+    <textarea id="pasteBox" placeholder="Paste text here..." oninput="highlightText()"></textarea>
+
+    <h2>선택된 옵션</h2>
+    <div id="selectedStats"></div>
+    <br />
+    <h3>검색 결과</h3>
+    <div id="highlightedText"></div>
+
+    <script>
+        const stats = [/*...json*/];
+        const selectedStats = {};
+        filteredStats = {}
+
+        function toggleFullList() {
+	const list = document.getElementById('fullList');
+	const isVisible = list.style.display !== 'none';
+    
+	// 항상 최신의 옵션 목록을 보여주기 위해 displayList 함수를 호출합니다.
+	displayList(stats, 'fullList', true); // 조건 제거
+
+	// 표시 상태를 토글합니다.
+	list.style.display = isVisible ? 'none' : 'flex';
+	this.textContent = isVisible ? '모든 옵션 보기' : '모든 옵션 숨기기';
+        }
+
+        function filterStats() {
+            const searchText = this.value.toLowerCase();
+            filteredStats = stats.filter(stat => stat.name.toLowerCase().includes(searchText));
+            displayList(filteredStats, 'searchResults', false);
+            document.getElementById('searchResults').style.display = searchText ? 'flex' : 'none';
+        }
+
+        function displayList(list, elementId, isFullList) {
+            const element = document.getElementById(elementId);
+    	element.innerHTML = ''; // 이전에 추가된 모든 항목을 제거합니다.
+    	list.forEach(stat => {
+        		const itemHTML = createStatHtml(stat, selectedStats[stat.id]);
+        		element.innerHTML += itemHTML; // 새로운 항목을 추가합니다.
+    	});
+        }
+
+        function createStatHtml(stat, isSelected) {
+            return `
+                <div>
+                    <label>
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="handleSelection('${stat.id}', this.checked)">
+                        ${stat.name}
+                    </label>
+                    <button onclick="toggleDetails('${stat.id}')"> v </button>
+                    <div id="${stat.id}" class="detail-container">
+                        아이템 위력<br/>
+                        ${stat.details.map(detail => `<span>${detail.itemPower}: ${detail.range}</span>`).join('<br />')}
+                        <br />부위: ${stat.links.join(', ')}
+                    </div>
+                    <br />
+                </div>
+            `;
+        }
+
+        function handleSelection(statId, isSelected) {
+            if (isSelected) {
+                selectedStats[statId] = stats.find(stat => stat.id === statId);
+            } else {
+                delete selectedStats[statId];
+            }
+            const selectedDiv = document.getElementById('selectedStats');
+            selectedDiv.innerHTML = Object.values(selectedStats).map(stat => stat.name).join('<br />');
+	highlightText();
+            displayList(stats, 'fullList', true);
+            displayList(filteredStats, 'searchResults', false);
+            filterStats();
+        }
+
+        function toggleDetails(collapseId) {
+            const detailDiv = document.getElementById(collapseId);
+            detailDiv.style.display = detailDiv.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function highlightText() {
+    	const pasteBox = document.getElementById('pasteBox');
+    	const pastedText = pasteBox.value;
+	    let highlightedText = pastedText;
+
+	Object.keys(selectedStats).forEach((statId) => {
+	   const option = selectedStats[statId].name; // 옵션 이름을 가져옵니다.
+	   // '[' 앞의 텍스트만 추출합니다.
+	   const baseOption = option.split('[')[0].trim();
+	   const escapedOption = baseOption.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+	   // 해당 옵션을 포함하는 줄을 찾는 정규 표현식입니다.
+	   const regexPattern = `(^|\\n)\\S?\\s*(${escapedOption})`;
+	   const regex = new RegExp(regexPattern, 'gim');
+
+	   highlightedText = highlightedText.replace(regex, (match, p1, p2) => {
+	       return `${p1}<span class="highlight">• ${p2}</span>`;
+	   });
+	});
+
+	const highlightedTextContainer = document.getElementById('highlightedText');
+	highlightedTextContainer.innerHTML = highlightedText.replace(/\n/g, '<br>');
+
+	// 입력 상자의 높이를 조정하여 모든 내용이 보이도록 합니다.
+	pasteBox.style.height = 'auto';
+	pasteBox.style.height = pasteBox.scrollHeight + 'px';
+        }
+
+	document.getElementById('pasteBox').addEventListener('input', highlightText);
+	document.getElementById('toggleFullList').addEventListener('click', toggleFullList);
+            document.getElementById('searchBox').addEventListener('input', filterStats);
+            // handleSelection(); // 초기화 시 선택된 옵션 업데이트
+    </script>
+</body>
+</html>
